@@ -1,0 +1,59 @@
+name: QingchenRadio
+
+options:
+  bundleIdPrefix: com.wuwencong
+  deploymentTarget:
+    iOS: "14.0"
+  createIntermediateGroups: true
+  groupSortPosition: top
+
+settings:
+  base:
+    SWIFT_VERSION: "5.0"
+    IPHONEOS_DEPLOYMENT_TARGET: "14.0"
+    ENABLE_USER_SCRIPT_SANDBOXING: "NO"
+
+targets:
+  QingchenRadio:
+    type: application
+    platform: iOS
+    sources:
+      - path: QingchenRadio
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.wuwencong.qingchenradio
+        PRODUCT_NAME: QingchenRadio
+        MARKETING_VERSION: "1.0"
+        CURRENT_PROJECT_VERSION: "1"
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        TARGETED_DEVICE_FAMILY: "1"
+        CODE_SIGN_STYLE: Manual
+        DEVELOPMENT_TEAM: ""
+    info:
+      path: QingchenRadio/Info.plist
+      properties:
+        CFBundleDisplayName: 清晨音乐台
+        CFBundleName: QingchenRadio
+        CFBundleShortVersionString: "1.0"
+        CFBundleVersion: "1"
+        LSRequiresIPhoneOS: true
+        UIUserInterfaceStyle: Dark
+        UIBackgroundModes:
+          - audio
+        UIApplicationSceneManifest:
+          UIApplicationSupportsMultipleScenes: false
+        UILaunchScreen: {}
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+        NSAppTransportSecurity:
+          NSAllowsArbitraryLoads: true
+
+schemes:
+  QingchenRadio:
+    build:
+      targets:
+        QingchenRadio: all
+    run:
+      config: Release
+    archive:
+      config: Release
