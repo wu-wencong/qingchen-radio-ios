@@ -1,0 +1,62 @@
+name: Build IPA
+
+on:
+  push:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: 编译未签名 IPA
+    runs-on: macos-14
+    timeout-minutes: 30
+
+    steps:
+      - name: 取出代码
+        uses: actions/checkout@v4
+
+      - name: 环境信息
+        run: |
+          xcodebuild -version
+          swift --version
+
+      - name: 安装 XcodeGen
+        run: brew install xcodegen
+
+      - name: 生成 Xcode 工程
+        run: xcodegen generate
+
+      - name: 编译（不签名）
+        run: |
+          set -o pipefail
+          xcodebuild \
+            -project QingchenRadio.xcodeproj \
+            -scheme QingchenRadio \
+            -configuration Release \
+            -sdk iphoneos \
+            -derivedDataPath build \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGN_ENTITLEMENTS="" \
+            build
+
+      - name: 打包成 ipa
+        run: |
+          APP=$(find build/Build/Products/Release-iphoneos -maxdepth 1 -name "*.app" | head -1)
+          echo "找到 App: $APP"
+          test -n "$APP"
+          mkdir -p out/Payload
+          cp -R "$APP" out/Payload/
+          cd out
+          zip -qry QingchenRadio.ipa Payload
+          ls -lh QingchenRadio.ipa
+          unzip -l QingchenRadio.ipa | head -20
+
+      - name: 上传成品
+        uses: actions/upload-artifact@v4
+        with:
+          name: QingchenRadio-unsigned-ipa
+          path: out/QingchenRadio.ipa
+          if-no-files-found: error
+          retention-days: 30
