@@ -20,6 +20,10 @@ final class RadioPlayer: ObservableObject {
     private var tcObs: NSKeyValueObservation?
     private var retryTask: DispatchWorkItem?
     private var retryLeft = 2
+    /// 当前在第几路源上。一个台可能挂了 2~3 路，一路不通就往下换
+    private var sourceIndex = 0
+    /// 当前源的名字，状态栏里能看出是不是换到备用线上了
+    @Published private(set) var currentSourceName: String = ""
     private var didAutoStart = false
 
     init() {
@@ -51,6 +55,7 @@ final class RadioPlayer: ObservableObject {
     func tune(to i: Int) {
         retryTask?.cancel()
         retryLeft = 2
+        sourceIndex = 0
         index = ((i % stations.count) + stations.count) % stations.count
         load()
     }
@@ -86,6 +91,9 @@ final class RadioPlayer: ObservableObject {
 
     private func load() {
         let s = current
+        if sourceIndex < 0 || sourceIndex >= s.sources.count { sourceIndex = 0 }
+        let src = s.sources[sourceIndex]
+        currentSourceName = src.name
         teardown()
 
         activateSession()
@@ -93,7 +101,7 @@ final class RadioPlayer: ObservableObject {
         isPlaying = false
         statusText = "正在连接 \(s.name)…"
 
-        let item = AVPlayerItem(url: s.url)
+        let item = AVPlayerItem(url: src.url)
         let p = AVPlayer(playerItem: item)
         p.allowsExternalPlayback = false
         p.automaticallyWaitsToMinimizeStalling = true
@@ -107,7 +115,7 @@ final class RadioPlayer: ObservableObject {
                     self.retryLeft = 2
                     self.isBuffering = false
                     self.isPlaying = true
-                    self.statusText = "正在播放"
+                    self.statusText = "正在播放 · \(self.currentSourceName)"
                     self.refreshNowPlaying()
                 case .failed:
                     self.scheduleRetry()
@@ -138,19 +146,34 @@ final class RadioPlayer: ObservableObject {
 
     private func scheduleRetry() {
         retryTask?.cancel()
-        if retryLeft > 0 {
+        let s = current
+        let delay: Double
+        let msg: String
+
+        if sourceIndex + 1 < s.sources.count {
+            // 还有备用线路：直接换过去，比在同一条死路上重试有用
+            sourceIndex += 1
+            delay = 1.0
+            msg = "主线路没通，切到\(s.sources[sourceIndex].name)…"
+        } else if retryLeft > 0 {
+            // 所有线路都试过了，回主源再来一轮（有些台是瞬时抖动）
             retryLeft -= 1
-            isBuffering = true
-            statusText = "线路不稳，正在重试…"
-            let task = DispatchWorkItem { [weak self] in self?.load() }
-            retryTask = task
-            DispatchQueue.main.asyncAfter(deadline: .now() + 1.5, execute: task)
+            sourceIndex = 0
+            delay = 1.5
+            msg = "线路不稳，正在重试…"
         } else {
             isBuffering = false
             isPlaying = false
             statusText = "这条线路暂时打不开，换一台试试"
             refreshNowPlaying()
+            return
         }
+
+        isBuffering = true
+        statusText = msg
+        let task = DispatchWorkItem { [weak self] in self?.load() }
+        retryTask = task
+        DispatchQueue.main.asyncAfter(deadline: .now() + delay, execute: task)
     }
 
     private func teardown() {
@@ -180,7 +203,7 @@ final class RadioPlayer: ObservableObject {
         let s = current
         var info: [String: Any] = [:]
         info[MPMediaItemPropertyTitle] = s.name
-        info[MPMediaItemPropertyArtist] = "清晨音乐台"
+        info[MPMediaItemPropertyArtist] = "私人电台"
         info[MPMediaItemPropertyAlbumTitle] = s.subtitle
         info[MPNowPlayingInfoPropertyIsLiveStream] = true
         info[MPNowPlayingInfoPropertyDefaultPlaybackRate] = 1.0
