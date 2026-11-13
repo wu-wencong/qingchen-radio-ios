@@ -3,6 +3,8 @@ import SwiftUI
 struct ContentView: View {
     @EnvironmentObject var radio: RadioPlayer
 
+    private let columns = Array(repeating: GridItem(.flexible(), spacing: 10), count: 3)
+
     var body: some View {
         ZStack {
             LinearGradient(
@@ -15,20 +17,20 @@ struct ContentView: View {
             VStack(spacing: 0) {
                 header
                 ScrollView(showsIndicators: false) {
-                    VStack(spacing: 10) {
+                    LazyVGrid(columns: columns, spacing: 10) {
                         ForEach(radio.stations) { s in
-                            StationRow(station: s,
-                                       selected: radio.index == s.id,
-                                       playing: radio.isPlaying && radio.index == s.id)
-                                .contentShape(Rectangle())
+                            StationCell(station: s,
+                                        selected: radio.index == s.id,
+                                        playing: radio.isPlaying && radio.index == s.id)
+                                .contentShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
                                 .onTapGesture { radio.tune(to: s.id) }
                         }
                     }
                     .padding(.horizontal, 16)
-                    .padding(.top, 8)
-                    .padding(.bottom, 120)
+                    .padding(.top, 14)
+                    .padding(.bottom, 118)
                 }
-                .padding(.top, 16)
+                .padding(.top, 12)
             }
 
             VStack {
@@ -45,7 +47,7 @@ struct ContentView: View {
     private var header: some View {
         HStack(alignment: .center) {
             VStack(alignment: .leading, spacing: 5) {
-                Text("清晨音乐台")
+                Text("私人电台")
                     .font(.system(size: 27, weight: .bold))
                     .foregroundColor(.white)
                 HStack(spacing: 6) {
@@ -135,60 +137,52 @@ struct ContentView: View {
     }
 }
 
-// MARK: - 电台行
+// MARK: - 电台卡片（3 列网格）
 
-struct StationRow: View {
+struct StationCell: View {
     let station: Station
     let selected: Bool
     let playing: Bool
 
     var body: some View {
-        HStack(spacing: 12) {
+        VStack(spacing: 8) {
             Image(station.art)
                 .resizable()
                 .aspectRatio(contentMode: .fill)
-                .frame(width: 52, height: 52)
-                .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                .frame(width: 56, height: 56)
+                .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
                 .overlay(
-                    RoundedRectangle(cornerRadius: 14, style: .continuous)
-                        .stroke(Color.white.opacity(0.10), lineWidth: 0.5)
+                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                        .stroke(Color.white.opacity(selected ? 0.16 : 0.08), lineWidth: 0.5)
                 )
 
-            VStack(alignment: .leading, spacing: 4) {
-                Text(station.name)
-                    .font(.system(size: 15.5, weight: .semibold))
-                    .foregroundColor(.white)
-                    .lineLimit(1)
-                Text(station.subtitle)
-                    .font(.system(size: 11.5))
-                    .foregroundColor(Color(hex: 0x7E8CA1))
-                    .lineLimit(1)
+            Text(station.name)
+                .font(.system(size: 11.5, weight: .medium))
+                .foregroundColor(selected ? .white : Color(hex: 0xC3CEDA))
+                .lineLimit(1)
+                .minimumScaleFactor(0.72)
+                .padding(.horizontal, 5)
+
+            // 固定高度：播放时是跳动的三根条，不播时留空，
+            // 这样切换台的时候卡片高度不会跳。
+            Group {
+                if playing {
+                    EqualizerBars()
+                } else {
+                    Color.clear
+                }
             }
-
-            Spacer(minLength: 4)
-
-            if playing {
-                EqualizerBars()
-                    .padding(.trailing, 6)
-            } else {
-                Text("\(station.kbps)k")
-                    .font(.system(size: 10.5, weight: .medium))
-                    .foregroundColor(Color(hex: 0x69768A))
-                    .padding(.trailing, 4)
-            }
-
-            Image(systemName: playing ? "pause.circle.fill" : "play.circle.fill")
-                .font(.system(size: 27))
-                .foregroundColor(selected ? Color(hex: 0xD8B26A) : Color(hex: 0x3D4A5D))
+            .frame(height: 12)
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 11)
+        .frame(maxWidth: .infinity)
+        .padding(.top, 14)
+        .padding(.bottom, 9)
         .background(
-            RoundedRectangle(cornerRadius: 17, style: .continuous)
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
                 .fill(Color.white.opacity(selected ? 0.075 : 0.032))
         )
         .overlay(
-            RoundedRectangle(cornerRadius: 17, style: .continuous)
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
                 .stroke(selected ? Color(hex: 0xD8B26A).opacity(0.55) : Color.white.opacity(0.045),
                         lineWidth: selected ? 1.2 : 0.5)
         )
@@ -206,7 +200,7 @@ struct EqualizerBars: View {
             bar(1.0)
             bar(0.7)
         }
-        .frame(height: 15)
+        .frame(height: 12)
         .onAppear {
             withAnimation(Animation.easeInOut(duration: 0.55).repeatForever(autoreverses: true)) {
                 on = true
@@ -217,7 +211,7 @@ struct EqualizerBars: View {
     private func bar(_ ratio: CGFloat) -> some View {
         Capsule()
             .fill(Color(hex: 0xD8B26A))
-            .frame(width: 3, height: 15 * (on ? ratio : ratio * 0.4))
+            .frame(width: 2.6, height: 12 * (on ? ratio : ratio * 0.4))
     }
 }
 
