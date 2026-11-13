@@ -10,6 +10,9 @@ jobs:
     name: 编译未签名 IPA
     runs-on: macos-15
     timeout-minutes: 30
+    # 发布 Release 需要写权限，默认的只读 token 会 403
+    permissions:
+      contents: write
 
     steps:
       - name: 取出代码
@@ -60,3 +63,16 @@ jobs:
           path: out/QingchenRadio.ipa
           if-no-files-found: error
           retention-days: 30
+
+      # artifact 下载要 token，Release 附件不用 —— 公开仓库的 release asset
+      # 可以走 api.github.com 匿名取，绕开被墙的 github.com。
+      # 每次覆盖同一个 latest 标签，下载地址永远是老的，不占额度。
+      - name: 挂到 Release（免登录下载）
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release delete latest --yes --cleanup-tag 2>/dev/null || true
+          gh release create latest out/QingchenRadio.ipa \
+            --title "私人电台 · 未签名 ipa" \
+            --notes "用 Sideloadly 或爱思助手，配自己的 Apple ID 签名后安装。个人签名 7 天有效，到期重签即可，不用重新下载。"
+          echo "下载页：https://github.com/${{ github.repository }}/releases/tag/latest"
